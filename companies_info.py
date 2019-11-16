@@ -1,9 +1,12 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from lxml import etree
 from io import StringIO
 from selenium.webdriver.firefox.options import Options
 import os, sys, signal, traceback
+
+def rreplace(s, old, new, occurrence):
+    li = s.rsplit(old, occurrence)
+    return new.join(li)
 
 replacement = {
   "M.": "Monsieur",
@@ -50,7 +53,11 @@ class CompaniesInfo:
         self.driver.get('https://fr.kompass.com/v/' + suffix)
         elem = self.driver.find_elements_by_class_name("pagination")
         children = elem[0].find_elements_by_xpath(".//*")
-        maxPage = int(children[len(children)-1].get_attribute('innerHTML').strip())
+        maxPage = -1
+        for child in children:
+            if child.text.isdigit() and maxPage < int(child.text):
+                maxPage = int(child.text)
+        #maxPage = int(children[len(children)-1].get_attribute('innerHTML').strip())
         i = 1
         print("found " + str(maxPage) + " pages")
         while i <= maxPage:
@@ -77,14 +84,15 @@ class CompaniesInfo:
 
 
     def getSelectedCompanyInfo(self, url):
-        print("\nwill retrive " + url + "\n")
         self.driver.get(url)
-        print(" retrieved url = " + url)
-        companyName = self.driver.find_elements_by_xpath(".//div[@class='companyCol1 blockNameCompany']/h1")
-        #for company in companyName:
-        #    print(company.get_attribute('outerHTML'))
-        if(len(companyName) > 0):
-            self.file.write('"' + companyName[0].text + '"' + ",")
+        h1 = self.driver.find_elements_by_xpath(".//div[@class='companyCol1 blockNameCompany']/h1")
+        if(len(h1) > 0):
+            span = h1[0].find_elements_by_xpath("./span")
+            companyName = h1[0].text
+            if len(span) > 0:
+                companyName = rreplace(h1[0].text, span[0].text, '', 1)
+                #companyName = h1[0].text.replace(span[0].text,"")
+            self.file.write('"' + companyName + '"' + ",")
         else:
             print("\ncouldn't find name\n")
             self.file.write(",")
